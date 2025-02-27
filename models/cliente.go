@@ -11,7 +11,6 @@ import (
 type Cliente struct {
 	ID                string    `json:"id" gorm:"primaryKey"`
 	Nome              string    `json:"nome" gorm:"type:varchar(255);not null"`
-	Sobrenome         string    `json:"sobrenome" gorm:"type:varchar(255);not null"`
 	DataNascimento    time.Time `json:"data_nascimento" gorm:"not null"`
 	Genero            string    `json:"genero" gorm:"type:varchar(50)"`
 	Email             string    `json:"email" gorm:"unique"`
@@ -58,3 +57,4 @@ func (p *Pais) BeforeCreate(tx *gorm.DB) (err error) {
 	}
 	return
 }
+

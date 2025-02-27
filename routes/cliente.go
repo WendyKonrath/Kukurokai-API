@@ -1,22 +1,24 @@
 package routes
 
 import (
+	"fmt"
 	"go-api/db"
 	"go-api/middleware"
 	"go-api/models"
 
-	"github.com/gofiber/fiber/v2"
 	"github.com/go-playground/validator/v10"
+	"github.com/gofiber/fiber/v2"
 )
 
 var validate = validator.New()
 
 func SetupClienteRoutes(app *fiber.App) {
-	clienteGroup := app.Group("/clientes", middleware.JWTMiddleware())
+	clienteGroup := app.Group("/clientes", middleware.JWTMiddleware())  // Middleware aplicado ao grupo de rotas
 
 	clienteGroup.Get("/", GetClientes)
 	clienteGroup.Post("/", CreateCliente)
 }
+
 
 func GetClientes(c *fiber.Ctx) error {
 	var clientes []models.Cliente
@@ -30,6 +32,9 @@ func CreateCliente(c *fiber.Ctx) error {
 	if err := c.BodyParser(cliente); err != nil {
 		return c.Status(400).JSON(fiber.Map{"error": "Requisição inválida"})
 	}
+
+	// Log para ver o que está chegando no corpo da requisição
+	fmt.Println("Dados recebidos para criação do cliente:", cliente)
 
 	if err := validate.Struct(cliente); err != nil {
 		return c.Status(400).JSON(fiber.Map{"error": "Dados inválidos"})
