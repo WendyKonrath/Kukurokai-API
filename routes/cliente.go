@@ -6,13 +6,13 @@ import (
 	"go-api/middleware"
 	"go-api/models"
 	"go-api/utils"
+	"time"
 
-	"github.com/go-playground/validator/v10"
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v5"
 )
 
-var validate = validator.New()
+var validate = utils.Validate
 
 func SetupClienteRoutes(app *fiber.App) {
 	clienteGroup := app.Group("/clientes", middleware.JWTMiddleware())
@@ -21,47 +21,6 @@ func SetupClienteRoutes(app *fiber.App) {
 	clienteGroup.Post("/", CreateCliente)
 	clienteGroup.Put("/:id", UpdateCliente)
 	clienteGroup.Delete("/:id", DeleteCliente)
-
-	// Rota temporária para criar usuário
-	app.Post("/create-user", CreateUser)
-}
-
-// Função para criar um usuário
-func CreateUser(c *fiber.Ctx) error {
-	type CreateUserRequest struct {
-		Email    string `json:"email" validate:"required,email"`
-		Password string `json:"password" validate:"required,min=6"`
-		Role     string `json:"role" validate:"required,oneof=superadmin admin user"`
-	}
-
-	var req CreateUserRequest
-	if err := c.BodyParser(&req); err != nil {
-		return c.Status(400).JSON(fiber.Map{"error": "Requisição inválida"})
-	}
-
-	// Validação dos dados
-	if err := validate.Struct(req); err != nil {
-		return c.Status(400).JSON(fiber.Map{"error": "Dados inválidos", "details": err.Error()})
-	}
-
-	// Criptografar a senha
-	hashedPassword, err := utils.HashPassword(req.Password)
-	if err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": "Erro ao criptografar senha"})
-	}
-
-	// Criar o usuário
-	user := models.User{
-		Email:    req.Email,
-		Password: hashedPassword,
-		Role:     req.Role,
-	}
-
-	if err := config.DB.Create(&user).Error; err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": "Erro ao criar usuário"})
-	}
-
-	return c.JSON(fiber.Map{"message": "Usuário criado com sucesso", "user": user})
 }
 
 func GetClientes(c *fiber.Ctx) error {
@@ -73,7 +32,7 @@ func GetClientes(c *fiber.Ctx) error {
 	}
 
 	var clientes []models.Cliente
-	config.DB.Preload("Pais").Find(&clientes) // Carrega os dados de Pais junto com Cliente
+	config.DB.Find(&clientes)
 	return c.JSON(clientes)
 }
 
@@ -100,28 +59,42 @@ func CreateCliente(c *fiber.Ctx) error {
 		return c.Status(400).JSON(fiber.Map{"error": "Dados inválidos", "details": err.Error()})
 	}
 
-	// Validação dos dados do Pais
-	if err := validate.Struct(req.Pais); err != nil {
-		return c.Status(400).JSON(fiber.Map{"error": "Dados inválidos", "details": err.Error()})
+	// Verificar se o cliente é menor de idade
+	idade := time.Now().Year() - req.Cliente.DataNascimento.Year()
+	if time.Now().Before(req.Cliente.DataNascimento.AddDate(idade, 0, 0)) {
+		idade-- // Ajuste para o caso de o aniversário ainda não ter ocorrido este ano
 	}
 
-	// Ignorar o ID enviado pelo cliente e gerar um novo
-	req.Cliente.ID = "" // Remove o ID enviado pelo cliente
-	if err := config.DB.Create(&req.Cliente).Error; err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": "Erro ao criar cliente"})
-	}
+	if idade < 18 {
+		// Validação dos dados do Pais (apenas se o cliente for menor de idade)
+		if err := validate.Struct(req.Pais); err != nil {
+			return c.Status(400).JSON(fiber.Map{"error": "Dados inválidos", "details": err.Error()})
+		}
 
-	// Associa o Pais ao Cliente
-	req.Pais.ClienteID = req.Cliente.ID
-	req.Pais.ID = "" // Remove o ID enviado pelo cliente
-	if err := config.DB.Create(&req.Pais).Error; err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": "Erro ao criar pais"})
-	}
+		// Ignorar o ID enviado pelo cliente e gerar um novo
+		req.Cliente.ID = "" // Remove o ID enviado pelo cliente
+		if err := config.DB.Create(&req.Cliente).Error; err != nil {
+			return c.Status(500).JSON(fiber.Map{"error": "Erro ao criar cliente"})
+		}
 
-	// Atualiza o PaisID no Cliente
-	req.Cliente.PaisID = &req.Pais.ID
-	if err := config.DB.Save(&req.Cliente).Error; err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": "Erro ao atualizar cliente"})
+		// Associa o Pais ao Cliente
+		req.Pais.ClienteID = req.Cliente.ID
+		req.Pais.ID = "" // Remove o ID enviado pelo cliente
+		if err := config.DB.Create(&req.Pais).Error; err != nil {
+			return c.Status(500).JSON(fiber.Map{"error": "Erro ao criar pais"})
+		}
+
+		// Atualiza o PaisID no Cliente
+		req.Cliente.PaisID = &req.Pais.ID
+		if err := config.DB.Save(&req.Cliente).Error; err != nil {
+			return c.Status(500).JSON(fiber.Map{"error": "Erro ao atualizar cliente"})
+		}
+	} else {
+		// Cliente é maior de idade, não adiciona os pais
+		req.Cliente.ID = "" // Remove o ID enviado pelo cliente
+		if err := config.DB.Create(&req.Cliente).Error; err != nil {
+			return c.Status(500).JSON(fiber.Map{"error": "Erro ao criar cliente"})
+		}
 	}
 
 	return c.JSON(req.Cliente)

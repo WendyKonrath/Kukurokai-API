@@ -2,9 +2,11 @@
 package routes
 
 import (
+	"fmt"
 	config "go-api/db"
 	"go-api/models"
 	"go-api/utils"
+	"os"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -35,14 +37,37 @@ func Login(c *fiber.Ctx) error {
 		return c.Status(401).JSON(fiber.Map{"error": "Credenciais inválidas"})
 	}
 
+	// Verificar os dados antes de criptografar
+	fmt.Println("Email:", user.Email)
+	fmt.Println("Role:", user.Role)
+
+	// Criptografar os dados sensíveis
+	encryptedEmail, err := utils.Encrypt([]byte(user.Email))
+	if err != nil {
+		fmt.Println("Erro ao criptografar email:", err)
+		return c.Status(500).JSON(fiber.Map{"error": "Erro ao criptografar dados"})
+	}
+
+	encryptedRole, err := utils.Encrypt([]byte(user.Role))
+	if err != nil {
+		fmt.Println("Erro ao criptografar role:", err)
+		return c.Status(500).JSON(fiber.Map{"error": "Erro ao criptografar dados"})
+	}
+
+	// Criar o token com os dados criptografados
 	claims := jwt.MapClaims{
-		"user": user.Email,
-		"role": user.Role,
+		"user": encryptedEmail,
+		"role": encryptedRole,
 		"exp":  time.Now().Add(time.Hour * 24).Unix(),
 	}
 
+	jwtSecret := os.Getenv("JWT_SECRET")
+	if jwtSecret == "" {
+		return c.Status(500).JSON(fiber.Map{"error": "Chave secreta JWT não configurada"})
+	}
+
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	tokenString, err := token.SignedString([]byte("sua_chave_secreta"))
+	tokenString, err := token.SignedString([]byte(jwtSecret))
 	if err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": "Erro ao gerar token"})
 	}
