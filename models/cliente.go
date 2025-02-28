@@ -2,35 +2,32 @@ package models
 
 import (
 	"time"
-
 	"github.com/matoous/go-nanoid/v2"
 	"gorm.io/gorm"
 )
 
-// Modelo de Cliente
 type Cliente struct {
 	ID                string    `json:"id" gorm:"primaryKey"`
-	Nome              string    `json:"nome" gorm:"type:varchar(255);not null"`
-	DataNascimento    time.Time `json:"data_nascimento" gorm:"not null"`
-	Genero            string    `json:"genero" gorm:"type:varchar(50)"`
-	Email             string    `json:"email" gorm:"unique"`
-	Telefone          string    `json:"telefone"`
-	CPF               string    `json:"cpf" gorm:"unique"`
-	Endereco          string    `json:"endereco"`
-	Cidade            string    `json:"cidade"`
-	Estado            string    `json:"estado"`
-	CEP               string    `json:"cep"`
-	FlagAniversariante bool     `json:"flag_aniversariante" gorm:"default:false"`
-	FlagInadimplente   bool     `json:"flag_inadimplente" gorm:"default:false"`
+	Nome              string    `json:"nome" validate:"required,min=3"`
+	DataNascimento    time.Time `json:"data_nascimento" validate:"required"`
+	Genero            string    `json:"genero" validate:"required,oneof=Masculino Feminino Outro"`
+	Email             string    `json:"email" validate:"required,email"`
+	Telefone          string    `json:"telefone" validate:"required"`
+	CPF               string    `json:"cpf" validate:"required"`
+	Endereco          string    `json:"endereco" validate:"required"`
+	Cidade            string    `json:"cidade" validate:"required"`
+	Estado            string    `json:"estado" validate:"required"`
+	CEP               string    `json:"cep" validate:"required"`
+	FlagAniversariante bool     `json:"flag_aniversariante"`
+	FlagInadimplente   bool     `json:"flag_inadimplente"`
 	PaisID            *string   `json:"pais_id"`
 	CreatedAt         time.Time `json:"created_at"`
 	UpdatedAt         time.Time `json:"updated_at"`
 }
 
-// Modelo de Pais
 type Pais struct {
 	ID          string `json:"id" gorm:"primaryKey"`
-	ClienteID   string `json:"cliente_id" gorm:"unique;constraint:OnDelete:CASCADE"`
+	ClienteID   string `json:"cliente_id" gorm:"unique;constraint:OnDelete:CASCADE"` // Chave estrangeira para Cliente
 	NomePai     string `json:"nome_pai"`
 	TelefonePai string `json:"telefone_pai"`
 	EmailPai    string `json:"email_pai"`
@@ -43,18 +40,35 @@ type Pais struct {
 	UpdatedAt   time.Time `json:"updated_at"`
 }
 
+type User struct {
+	ID       string `json:"id" gorm:"primaryKey"`
+	Email    string `json:"email" gorm:"unique;not null" validate:"required,email"`
+	Password string `json:"-" gorm:"not null" validate:"required,min=6"`
+	Role     string `json:"role" gorm:"not null" validate:"required,oneof=superadmin admin user"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
 // Gerar ID automaticamente com nanoid
-func (c *Cliente) BeforeCreate(tx *gorm.DB) (err error) {
-	if c.ID == "" {
-		c.ID, err = gonanoid.New()
+func (u *User) BeforeCreate(tx *gorm.DB) (err error) {
+	if u.ID == "" {
+		u.ID, err = gonanoid.New()
 	}
 	return
 }
 
-func (p *Pais) BeforeCreate(tx *gorm.DB) (err error) {
-	if p.ID == "" {
-		p.ID, err = gonanoid.New()
+// Gerar ID automaticamente com nanoid
+func (u *Pais) BeforeCreate(tx *gorm.DB) (err error) {
+	if u.ID == "" {
+		u.ID, err = gonanoid.New()
 	}
 	return
 }
 
+// Gerar ID automaticamente com nanoid
+func (u *Cliente) BeforeCreate(tx *gorm.DB) (err error) {
+	if u.ID == "" {
+		u.ID, err = gonanoid.New()
+	}
+	return
+}

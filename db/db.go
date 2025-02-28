@@ -29,7 +29,7 @@ func InitDB() {
 	}
 
 	// Adiciona a migração aqui
-	if err := DB.AutoMigrate(&models.Cliente{}, &models.Pais{}); err != nil {
+	if err := DB.AutoMigrate(&models.Cliente{}, &models.Pais{}, &models.User{}); err != nil {
 		log.Fatal("Erro ao migrar as tabelas:", err)
 	}
 

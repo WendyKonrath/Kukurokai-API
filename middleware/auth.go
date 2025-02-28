@@ -38,42 +38,31 @@ func GenerateToken(c *fiber.Ctx) error {
 
 // JWTMiddleware valida o token JWT
 func JWTMiddleware() fiber.Handler {
-    return func(c *fiber.Ctx) error {
-        tokenString := c.Get("Authorization")
+	return func(c *fiber.Ctx) error {
+		tokenString := c.Get("Authorization")
 
-        if tokenString == "" {
-            return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Token não fornecido"})
-        }
+		if tokenString == "" {
+			return c.Status(401).JSON(fiber.Map{"error": "Token não fornecido"})
+		}
 
-        if len(tokenString) > 7 && tokenString[:7] == "Bearer " {
-            tokenString = tokenString[7:]
-        }
+		if len(tokenString) > 7 && tokenString[:7] == "Bearer " {
+			tokenString = tokenString[7:]
+		}
 
-        // Verifica e valida o token
-        token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-            return []byte("sua_chave_secreta"), nil
-        })
+		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+			return []byte("sua_chave_secreta"), nil
+		})
 
-        if err != nil || !token.Valid {
-            return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Token inválido"})
-        }
+		if err != nil || !token.Valid {
+			return c.Status(401).JSON(fiber.Map{"error": "Token inválido"})
+		}
 
-        // Acessa as claims e verifica a role
-        claims, ok := token.Claims.(jwt.MapClaims)
-        if !ok {
-            return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Token malformado"})
-        }
+		claims, ok := token.Claims.(jwt.MapClaims)
+		if !ok {
+			return c.Status(401).JSON(fiber.Map{"error": "Token malformado"})
+		}
 
-        role := claims["role"].(string) // Supondo que a role esteja no token
-        fmt.Println("Role do usuário:", role)
-
-        // Verifique se o usuário tem permissão para acessar essa rota
-        if role != "admin" {
-            return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "Acesso proibido"})
-        }
-
-        c.Locals("user", claims)
-
-        return c.Next()
-    }
+		c.Locals("user", claims)
+		return c.Next()
+	}
 }
