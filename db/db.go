@@ -2,8 +2,8 @@ package config
 
 import (
 	"fmt"
-	"go-api/models"  // Certifique-se de importar o pacote onde estão seus modelos
 	"go-api/db/config"
+	"go-api/models" // Certifique-se de importar o pacote onde estão seus modelos
 	"log"
 	"os"
 
@@ -29,7 +29,7 @@ func InitDB() {
 	}
 
 	// Adiciona a migração aqui
-	if err := DB.AutoMigrate(&models.Cliente{}, &models.Pais{}, &models.User{}); err != nil {
+	if err := DB.AutoMigrate(&models.Cliente{}, &models.Pais{}, &models.User{}, &models.Sale{}, &models.Produto{}, &models.Subscription{}); err != nil {
 		log.Fatal("Erro ao migrar as tabelas:", err)
 	}
 

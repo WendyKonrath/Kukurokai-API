@@ -2,7 +2,7 @@
 package main
 
 import (
-	"go-api/db"
+	config "go-api/db"
 	"go-api/middleware"
 	"go-api/models"
 	"go-api/routes"
@@ -13,6 +13,9 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
+// Inicializa o servidor da API, configurando o banco de dados,
+// criando o superadmin se necessário e definindo as rotas da aplicação.
+// Inicia o servidor na porta 3000.
 func main() {
 	config.InitDB()
 
@@ -24,10 +27,17 @@ func main() {
 	routes.SetupAuthRoutes(app)
 	routes.SetupClienteRoutes(app)
 	routes.SetupUserRoutes(app)
+	routes.SetupSubscriptionRoutes(app)
+	routes.SetupProductRoutes(app)
+	routes.SetupSaleRoutes(app)
 
 	log.Fatal(app.Listen(":3000"))
 }
 
+// Verifica a existência e cria um superadmin no sistema caso não exista.
+// Utiliza as variáveis de ambiente SUPERADMIN_EMAIL e SUPERADMIN_PASSWORD.
+// Realiza a criptografia da senha antes de salvar no banco de dados.
+// Em caso de erro durante o processo, encerra a aplicação com log.Fatal.
 func createSuperAdmin() {
 	superAdminEmail := os.Getenv("SUPERADMIN_EMAIL")
 	superAdminPassword := os.Getenv("SUPERADMIN_PASSWORD")

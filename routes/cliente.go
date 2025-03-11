@@ -18,11 +18,33 @@ func SetupClienteRoutes(app *fiber.App) {
 	clienteGroup := app.Group("/clientes", middleware.JWTMiddleware())
 
 	clienteGroup.Get("/", GetClientes)
+	clienteGroup.Get("/basic", GetClientesBasic)
+	clienteGroup.Get("/:id", GetCliente)    // Nova rota para buscar cliente por ID
 	clienteGroup.Post("/", CreateCliente)
 	clienteGroup.Put("/:id", UpdateCliente)
 	clienteGroup.Delete("/:id", DeleteCliente)
 }
 
+// GetCliente retorna os dados completos de um cliente específico pelo ID
+func GetCliente(c *fiber.Ctx) error {
+	user := c.Locals("user").(jwt.MapClaims)
+	role := user["role"].(string)
+
+	if role != "admin" && role != "superadmin" {
+		return c.Status(403).JSON(fiber.Map{"error": "Acesso proibido"})
+	}
+
+	id := c.Params("id")
+	var cliente models.Cliente
+
+	if err := config.DB.Preload("Pais").First(&cliente, "id = ?", id).Error; err != nil {
+		return c.Status(404).JSON(fiber.Map{"error": "Cliente não encontrado"})
+	}
+
+	return c.JSON(cliente)
+}
+
+// GetClientes retorna todos os dados dos clientes, incluindo informações dos pais
 func GetClientes(c *fiber.Ctx) error {
 	user := c.Locals("user").(jwt.MapClaims)
 	role := user["role"].(string)
@@ -32,8 +54,31 @@ func GetClientes(c *fiber.Ctx) error {
 	}
 
 	var clientes []models.Cliente
-	config.DB.Find(&clientes)
+	config.DB.Preload("Pais").Find(&clientes) // Adicionado Preload para carregar dados dos pais
 	return c.JSON(clientes)
+}
+
+// GetClientesBasic retorna apenas ID, Nome Completo e E-mail dos clientes
+func GetClientesBasic(c *fiber.Ctx) error {
+	user := c.Locals("user").(jwt.MapClaims)
+	role := user["role"].(string)
+
+	if role != "admin" && role != "superadmin" {
+		return c.Status(403).JSON(fiber.Map{"error": "Acesso proibido"})
+	}
+
+	type ClienteBasico struct {
+		ID          string `json:"id"`
+		NomeCompleto string `json:"nome_completo"`
+		Email       string `json:"email"`
+	}
+
+	var clientesBasicos []ClienteBasico
+	config.DB.Model(&models.Cliente{}).
+		Select("id, nome_completo, email").
+		Find(&clientesBasicos)
+
+	return c.JSON(clientesBasicos)
 }
 
 func CreateCliente(c *fiber.Ctx) error {
